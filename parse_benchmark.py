@@ -23,8 +23,10 @@ for i, match in enumerate(candidates):
     end = candidates[i + 1].start() if i + 1 < len(candidates) else len(full_text)
     chunk = full_text[start:end]
     if "Profile Applicability" in chunk:
-        # Real control — keep it
-        controls.append({"id": match.group(1), "title": match.group(2).strip()})
+        # Title = everything between the ID and "Profile Applicability",
+        # with wrapped-line whitespace collapsed to single spaces
+        title_text = chunk[len(match.group(1)):chunk.index("Profile Applicability")]
+        controls.append({"id": match.group(1), "title": " ".join(title_text.split())})
         chunks.append(chunk)
     elif chunks:
         # Impostor heading (mapping-table row) — this text is the tail of
