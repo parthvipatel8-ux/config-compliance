@@ -3,6 +3,8 @@ import os
 from dotenv import load_dotenv
 import anthropic
 import chromadb
+from pydantic import BaseModel, Field
+from typing import Literal
 
 load_dotenv()
 
@@ -24,6 +26,19 @@ Rules:
   and do not attempt an answer.
 - Remediation steps must be copy-paste ready where possible."""
 
+class RemediationResponse(BaseModel):
+    relevant_control_found: bool = Field(
+        description="False if none of the provided controls answer the question")
+    control_id: str | None
+    benchmark: str | None
+    control_title: str | None
+    severity: Literal["low", "medium", "high"] | None = Field(
+        description="Estimated severity based on the control's rationale and profile level")
+    rationale: str | None = Field(description="Why this control matters, in plain language")
+    remediation_steps: list[str] = Field(
+        description="Ordered, copy-paste-ready steps. Empty if no relevant control.")
+    verification: str | None = Field(description="How to verify the fix, from the Audit section")
+    estimated_effort_minutes: int | None
 
 def retrieve(query: str, k: int = 3) -> list[dict]:
     results = collection.query(query_texts=[query], n_results=k)
@@ -41,11 +56,11 @@ Remediation: {s.get('Remediation', 'N/A')}
 </control>"""
 
 
-def answer(question: str) -> str:
+def answer(question: str) -> "RemediationResponse":
     controls = retrieve(question)
     context = "\n\n".join(format_control(r) for r in controls)
 
-    response = client.messages.create(
+    response = client.messages.parse(
         model="claude-sonnet-5",
         max_tokens=2000,
         system=SYSTEM_PROMPT,
@@ -53,13 +68,15 @@ def answer(question: str) -> str:
             "role": "user",
             "content": f"<controls>\n{context}\n</controls>\n\nQuestion: {question}",
         }],
+        output_format=RemediationResponse,
     )
     usage = response.usage
     print(f"[retrieved: {', '.join(r['control_id'] for r in controls)}] "
           f"[tokens in: {usage.input_tokens}, out: {usage.output_tokens}]\n")
-    return response.content[0].text
+    return response.parsed_output
 
 
 if __name__ == "__main__":
-    question = "How do I enforce password complexity on Windows Server 2019?"
-    print(answer(question))
+    import sys
+    question = " ".join(sys.argv[1:]) or "How do I enforce password complexity on Windows Server 2019?"
+    print(answer(question).model_dump_json(indent=2))
