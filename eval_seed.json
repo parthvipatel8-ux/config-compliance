@@ -1,0 +1,34 @@
+[
+  {
+    "question": "How do I stop users creating setuid files in the audit log partition?",
+    "expected_control": "1.1.2.7.3",
+    "retrieved_ok": true,
+    "answer_quality": "good",
+    "notes": ""
+  },
+  {
+    "question": "How do I explain to customers how and why the GPG keys should be configured?",
+    "expected_control": "1.2.1",
+    "retrieved_ok": true,
+    "answer_quality": "good",
+    "notes": ""
+  },
+  {
+    "question": "How do I enforce password complexity on Windows Server 2019?",
+    "expected_control": "null",
+    "answer_quality": "good",
+    "notes": ""
+  },
+  {
+    "question": "How many controls are related to nosuid?",
+    "expected_control": "1.1.2.1.3, 1.1.2.2.3, 1.1.2.3.3, 1.1.2.4.3, 1.1.2.5.3, 1.1.2.6.3, 1.1.2.7.3",
+    "answer_quality": "bad",
+    "notes": "It only found 3 controls and it did not answer the question about how many controls are related to nosuid. It should have returned 7 controls. It also just gave remediation for one of those controls as it only returns structured json output. "
+  },
+{
+    "question": "could you please list all controls with highest severity?",
+    "expected_control": "null",
+    "answer_quality": "bad",
+    "notes": "only lists 3 controls but how does it know they are the highest severity? It should have returned all controls with the highest severity. It also just gave remediation for one of those controls as it only returns structured json output. "
+  }
+]

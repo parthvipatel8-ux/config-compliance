@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 import anthropic
 import chromadb
 from pydantic import BaseModel, Field
-from typing import Literal
 
 load_dotenv()
 
@@ -24,6 +23,10 @@ Rules:
 - Always cite the control ID and benchmark you are answering from.
 - If none of the provided controls are relevant to the question, say exactly that
   and do not attempt an answer.
+- You only see a few retrieved controls, never the whole benchmark. If the question
+  requires counting, listing, or ranking across ALL controls (e.g. "how many...",
+  "list all..."), state that this service answers questions about specific controls
+  and cannot enumerate the full benchmark.
 - Remediation steps must be copy-paste ready where possible."""
 
 class RemediationResponse(BaseModel):
@@ -32,13 +35,14 @@ class RemediationResponse(BaseModel):
     control_id: str | None
     benchmark: str | None
     control_title: str | None
-    severity: Literal["low", "medium", "high"] | None = Field(
-        description="Estimated severity based on the control's rationale and profile level")
     rationale: str | None = Field(description="Why this control matters, in plain language")
     remediation_steps: list[str] = Field(
         description="Ordered, copy-paste-ready steps. Empty if no relevant control.")
     verification: str | None = Field(description="How to verify the fix, from the Audit section")
     estimated_effort_minutes: int | None
+
+class ApiResponse(RemediationResponse):
+    profile_applicability: str | None = None
 
 def retrieve(query: str, k: int = 3) -> list[dict]:
     results = collection.query(query_texts=[query], n_results=k)
@@ -56,7 +60,7 @@ Remediation: {s.get('Remediation', 'N/A')}
 </control>"""
 
 
-def answer(question: str) -> "RemediationResponse":
+def answer(question: str) -> "ApiResponse":
     controls = retrieve(question)
     context = "\n\n".join(format_control(r) for r in controls)
 
@@ -73,10 +77,14 @@ def answer(question: str) -> "RemediationResponse":
     usage = response.usage
     print(f"[retrieved: {', '.join(r['control_id'] for r in controls)}] "
           f"[tokens in: {usage.input_tokens}, out: {usage.output_tokens}]\n")
-    return response.parsed_output
+    result = ApiResponse(**response.parsed_output.model_dump())
+    by_id = {r["control_id"]: r for r in controls}
+    if result.control_id in by_id:
+        result.profile_applicability = by_id[result.control_id]["sections"].get("Profile Applicability")
+    return result
 
 
 if __name__ == "__main__":
     import sys
-    question = " ".join(sys.argv[1:]) or "How do I enforce password complexity on Windows Server 2019?"
+    question = " ".join(sys.argv[1:]) or "How many controls are related to nosuid?"
     print(answer(question).model_dump_json(indent=2))
