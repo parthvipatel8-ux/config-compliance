@@ -1,14 +1,14 @@
 import os
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException, Request, Security
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Security
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-from rag_pipeline import answer, ApiResponse
+from rag_pipeline import ApiResponse, answer, search
 
 load_dotenv()
 
@@ -51,3 +51,23 @@ class RemediateRequest(BaseModel):
 @limiter.limit("10/minute")
 def remediate(request: Request, payload: RemediateRequest, api_key: str = Depends(require_api_key)) -> ApiResponse:
     return answer(payload.question)
+
+
+
+class SearchResult(BaseModel):
+    control_id: str
+    benchmark: str
+    title: str
+    profile_applicability: str | None
+    distance: float = Field(description="Semantic distance — lower means more similar")
+
+
+@app.get("/api/v1/search", response_model=list[SearchResult])
+@limiter.limit("30/minute")
+def search_controls(
+    request: Request,
+    q: str = Query(min_length=2, max_length=200, description="What to search for"),
+    k: int = Query(default=5, ge=1, le=20, description="How many results (1-20)"),
+    api_key: str = Depends(require_api_key),
+) -> list[SearchResult]:
+    return search(q, k)

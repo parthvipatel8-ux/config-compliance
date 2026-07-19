@@ -48,6 +48,19 @@ def retrieve(query: str, k: int = 3) -> list[dict]:
     results = collection.query(query_texts=[query], n_results=k)
     return [records[chroma_id] for chroma_id in results["ids"][0]]
 
+def search(query: str, k: int = 5) -> list[dict]:
+    results = collection.query(query_texts=[query], n_results=k)
+    return [
+        {
+            "control_id": records[chroma_id]["control_id"],
+            "benchmark": records[chroma_id]["benchmark"],
+            "title": records[chroma_id]["title"],
+            "profile_applicability": records[chroma_id]["sections"].get("Profile Applicability"),
+            "distance": round(distance, 4),
+        }
+        for chroma_id, distance in zip(results["ids"][0], results["distances"][0], strict=True)
+    ]
+
 
 def format_control(r: dict) -> str:
     s = r["sections"]
