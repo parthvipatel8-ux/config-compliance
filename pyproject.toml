@@ -10,5 +10,6 @@ dependencies = [
     "fastapi>=0.139.0",
     "pypdf>=6.14.2",
     "python-dotenv>=1.2.2",
+    "slowapi>=0.1.10",
     "uvicorn>=0.51.0",
 ]
